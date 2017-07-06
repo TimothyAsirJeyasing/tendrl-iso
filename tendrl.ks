@@ -105,6 +105,19 @@ sleep 10
 APISERVER=`gethostip`
 configureEtcd
 
+/usr/lib/python2.7/site-packages/graphite/manage.py syncdb --noinput
+chown apache:apache /var/lib/graphite-web/graphite.db
+/sbin/service carbon-cache start
+/sbin/chkconfig carbon-cache on
+/sbin/service httpd start
+/sbin/chkconfig httpd on
+
+cat > /etc/cron.d/tendrl << EOF
+* * * * * /usr/bin/sh /usr/local/setup-script
+EOF
+
+cat > /usr/local/mongo-init-script << EOF
+#!/bin/bash
 sed -i /etc/etcd/etcd.conf
   -e "s/^#ETCD_LISTEN_CLIENT_URLS=.*/ETCD_LISTEN_CLIENT_URLS=$(APISERVER)/"
 sed -i /etc/tendrl/node-agent/node-agent.conf.yaml
@@ -139,15 +152,9 @@ RACK_ENV=production rake etcd:load_admin
 
 /bin/systemctl enable tendrl-performance-monitoring
 /bin/systemctl start tendrl-performance-monitoring
+EOF
 
-sleep 10
-
-/usr/lib/python2.7/site-packages/graphite/manage.py syncdb --noinput
-chown apache:apache /var/lib/graphite-web/graphite.db
-/sbin/service carbon-cache start
-/sbin/chkconfig carbon-cache on
-/sbin/service httpd start
-/sbin/chkconfig httpd on
-
+chmod +x /usr/local/setup-script
+crontab /etc/cron.d/tendrl
 exit 0
 %end
